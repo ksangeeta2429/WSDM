@@ -11,7 +11,7 @@ import matplotlib.pyplot as plt
 
 # In[2]:
 
-rcolumn = 'lyricist'
+rcolumn = 'composer'
 headers = ['song_id', rcolumn]
 new_songs = pd.read_csv('../Data/shortlisted_song.csv', usecols = headers, na_filter=True)
 new_songs = new_songs.dropna(axis = 0)
