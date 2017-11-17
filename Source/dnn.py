@@ -1,7 +1,7 @@
 
 # coding: utf-8
 
-# In[1]:
+# In[ ]:
 
 import gc
 import numpy as np
@@ -18,7 +18,7 @@ from keras.layers import Dense
 from keras.layers import Dropout
 
 
-# In[3]:
+# In[ ]:
 
 song_cols = ['song_id', 'genre_ids', 'song_length', 'language']
 songs = pd.read_csv('../Data/songs.csv', usecols = song_cols)
@@ -32,21 +32,20 @@ members = pd.read_csv('../Data/members.csv')
 members = members.drop(['bd', 'gender','registration_init_time','expiration_date'], axis=1)
 
 
-# In[11]:
+# In[ ]:
 
 train = pd.read_csv('../Data/train.csv')
 test = pd.read_csv('../Data/test.csv')
 
 
-# In[12]:
+# In[ ]:
 
 songs_new = songs.merge(artists, on='song_id', how='left')
 songs_new = songs_new.merge(lyricists, on='song_id', how='left')
 songs_new = songs_new.merge(composers, on='song_id', how='left')
-#print songs_new.head
 
 
-# In[13]:
+# In[ ]:
 
 train = train.merge(songs_new, on='song_id', how='left')
 test = test.merge(songs_new, on='song_id', how='left')
@@ -66,10 +65,8 @@ test = test.merge(members, on='msno', how='left')
 train = train.fillna(-2)
 test = test.fillna(-2)
 
-#print train.iloc[0]
 
-
-# In[14]:
+# In[ ]:
 
 cols = list(train.columns)
 cols.remove('target')
@@ -87,17 +84,16 @@ for col in tqdm(cols):
         test[col] = le.transform(test[col])
 
 
-# In[15]:
+# In[ ]:
 
 X = np.array(train.drop(['target'], axis=1))
 Y = train['target'].values
 
 X_test = np.array(test.drop(['id'], axis=1))
 Y_test = test['id'].values
-#print X_test
 
 
-# In[16]:
+# In[ ]:
 
 cols_name = list(train.columns)
 X_new = X
@@ -105,6 +101,10 @@ X_new = X
 max_vals = X_new.max(axis = 0).transpose()
 min_vals = X_new.min(axis = 0).transpose()
 mean_vals = np.mean(X_new, axis = 0).transpose()
+
+max_vals_2 = X_test.max(axis = 0).transpose()
+min_vals_2 = X_test.min(axis = 0).transpose()
+mean_vals_2 = np.mean(X_test, axis = 0).transpose()
 
 #training set
 X_new = X_new - mean_vals
@@ -118,22 +118,19 @@ X_new_test = np.around(X_new_test,decimals = 2)
 #print X_new_test.max(axis = 0)
 #print X_new_test.min(axis = 0)
 
-#print X_new.max(axis = 0)
-#print X_new.min(axis = 0)
 
-
-# In[8]:
+# In[ ]:
 
 #np.savetxt("train.csv", X_new, delimiter=",")
 #np.savetxt("test.csv", X_new_test, delimiter=",")
 
 
-# In[17]:
+# In[ ]:
 
-#X_train, X_validation, Y_train, Y_validation = train_test_split(X, Y, test_size=0.1, random_state = 10)
+X_train, X_val, Y_train, Y_val = train_test_split(X_new, Y, test_size=0.1, random_state = 10)
     
-del X, Y; 
-del members, songs;
+del X; 
+del members, songs, artists, composers, lyricists;
 del train, test;
 gc.collect();
 
@@ -141,7 +138,7 @@ gc.collect();
 # In[ ]:
 
 model = Sequential([
-    Dense(units=1024, kernel_initializer='uniform', input_dim=X_new.shape[1], activation='relu'),
+    Dense(units=1024, kernel_initializer='uniform', input_dim=X_train.shape[1], activation='relu'),
     Dense(units=512, kernel_initializer='uniform', activation='relu'),
     Dropout(0.25),
     Dense(128, kernel_initializer='uniform', activation='relu'),
@@ -150,17 +147,24 @@ model = Sequential([
 ])
 
 model.compile(optimizer='adam', loss='binary_crossentropy', metrics=['accuracy'])
-model.fit(X_new, Y, batch_size=128, epochs=20)
+model.fit(X_train, Y_train, validation_data=(X_val, Y_val), batch_size=128, epochs=20)
 
 
 # In[ ]:
 
-score = model.evaluate(X_new_test, Y_test, batch_size=X_new_test.shape[0])
-print '\nLoss is ', score[0]
-print '\nAnd the Score is ', score[1] * 100, '%'
+model.save('../Models/dnn_preprocessed.h5')
 
 
 # In[ ]:
 
+predicted = model.predict(X_new_test, batch_size=128, verbose=0)
 
+
+# In[ ]:
+
+headers = ['id', 'predicted']
+df_new = pd.DataFrame(columns=headers)
+df_new['id'] = Y_test
+df_new['predicted'] = predicted
+df_new.to_csv('test.csv', index=False)
 
